@@ -19,3 +19,10 @@ Adds hotkeys to improve control over animation playback. At Timeline, Graph or D
 ####PROJECT PAINT TOGGLE
 Adds a hotkey (Q at Texture Paint mode) to toggle "Occlude, Cull and Normal" options at once.
 https://www.youtube.com/watch?v=rL1v3YSVyCg
+
+####EASY PIXEL INTERPOL
+Makes pixel-art texturing quicker: no more trips to the Shader Editor to set Image Texture nodes to "Closest".
+
+- New Image Texture nodes default to Closest (toggle and default mode in the add-on preferences; existing nodes are left untouched)
+- CTRL+ALT+L = Toggles Closest / Linear for the active image (Image Editor, Texture Paint mode, or the active Image Texture node in the Shader Editor)
+- Interpolation dropdown in the Image Editor header and the Texture Slots panel
