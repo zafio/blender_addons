@@ -618,7 +618,7 @@ class SNA_PT_Brush_Settings_86BC5(bpy.types.Panel):
             
             # Row 2: Falloff Curve Presets + Paint Symmetry
             # Curves + AA get 73% of the width, the X/Y/Z mirror buttons the rest
-            row_split = col.split(factor=0.73, align=True)
+            row_split = col.split(factor=0.60, align=True)
             row_split.enabled = True
             row_split.alert = False
             row = row_split.row(align=True)
@@ -975,4 +975,4 @@ def unregister():
 
 
 if __name__ == "__main__":
-    register()
+    register()
