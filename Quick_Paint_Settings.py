@@ -2,7 +2,7 @@ bl_info = {
     "name": "QuickPaintSettingsPanel",
     "description": "Popup Panel and Hotkeys for quicker access to common paint settings",
     "author": "Zafio",
-    "version": (0, 0, 4),
+    "version": (0, 0, 5),
     "blender": (4, 5, 0),
     "location": "View3D (Image Paint & Vertex Paint) and Image Editor",
     "warning": "",
@@ -425,6 +425,68 @@ class SNA_OT_Toggle_Jitter_Mode(bpy.types.Operator):
         return self.execute(context)
 
 
+###############   PIXEL CURVE PRESET
+# Hard step falloff: full strength up to just under half the radius, then zero.
+PIXEL_CURVE_POINTS = ((0.0, 1.0), (0.499, 1.0), (0.5, 0.0), (1.0, 0.0))
+
+
+def get_active_paint_brush(context):
+    """Return the brush of the current paint mode (vertex or texture/image paint)."""
+    ts = context.scene.tool_settings
+    if context.mode == 'PAINT_VERTEX':
+        return ts.vertex_paint.brush
+    return ts.image_paint.brush
+
+
+def apply_pixel_curve(brush):
+    # Blender 4.5 uses brush.curve / curve_preset; 5.0 renames them to curve_distance_falloff*
+    if hasattr(brush, "curve_distance_falloff"):
+        brush.curve_distance_falloff_preset = 'CUSTOM'
+        mapping = brush.curve_distance_falloff
+    else:
+        brush.curve_preset = 'CUSTOM'
+        mapping = brush.curve
+
+    points = mapping.curves[0].points
+    # A curve must keep at least 2 points: trim down to 2, then rebuild
+    while len(points) > 2:
+        points.remove(points[-1])
+    (x0, y0), (x1, y1) = PIXEL_CURVE_POINTS[0], PIXEL_CURVE_POINTS[-1]
+    points[0].location = (x0, y0)
+    points[1].location = (x1, y1)
+    for x, y in PIXEL_CURVE_POINTS[1:-1]:
+        points.new(x, y)
+    # Vector handles keep the segments straight (no overshoot around the step)
+    for p in points:
+        p.handle_type = 'VECTOR'
+    mapping.update()
+
+
+class SNA_OT_Pixel_Curve_Preset(bpy.types.Operator):
+    bl_idname = "sna.pixel_curve_preset"
+    bl_label = "Pixel Curve Preset"
+    bl_description = "Pixel preset"
+    bl_options = {"REGISTER", "UNDO"}
+
+    @classmethod
+    def poll(cls, context):
+        return True
+
+    def execute(self, context):
+        try:
+            brush = get_active_paint_brush(context)
+            if brush is None:
+                self.report({'WARNING'}, "No active paint brush")
+                return {"CANCELLED"}
+            apply_pixel_curve(brush)
+        except Exception as exc:
+            print(str(exc) + " | Error in execute function of Pixel_Curve_Preset")
+        return {"FINISHED"}
+
+    def invoke(self, context, event):
+        return self.execute(context)
+
+
 ###############   BACKGROUND GRADIENT
 def get_background_color(context):
     """Return the current 3D View theme background color."""
@@ -568,7 +630,8 @@ class SNA_PT_Brush_Settings_86BC5(bpy.types.Panel):
             op.shape = sn_cast_enum(r"SHARP", [("SHARP","Sharp",""),("SMOOTH","Smooth",""),("MAX","Max",""),("LINE","Line",""),("ROUND","Round",""),("ROOT","Root",""),])
             op = row.operator("brush.curve_preset",text=r"",emboss=ui_style,depress=False,icon='NOCURVE')
             op.shape = sn_cast_enum(r"MAX", [("SHARP","Sharp",""),("SMOOTH","Smooth",""),("MAX","Max",""),("LINE","Line",""),("ROUND","Round",""),("ROOT","Root",""),])
-            
+            op = row.operator("sna.pixel_curve_preset",text=r"",emboss=ui_style,depress=False,icon='DOT')
+
             # Paint Symmetry buttons (X, Y, Z)
             depress_x = get_paint_symmetry(bpy.context, 'x')
             depress_y = get_paint_symmetry(bpy.context, 'y')
@@ -876,6 +939,7 @@ def register():
     bpy.utils.register_class(SNA_OT_Toggle_Y_Mirror)
     bpy.utils.register_class(SNA_OT_Toggle_Z_Mirror)
     bpy.utils.register_class(SNA_OT_Toggle_Jitter_Mode)
+    bpy.utils.register_class(SNA_OT_Pixel_Curve_Preset)
     bpy.utils.register_class(SNA_OT_Reset_Background)
     bpy.utils.register_class(SNA_PT_Brush_Settings_86BC5)
     bpy.utils.register_class(SNA_OT_Multiply_Bleed)
@@ -900,6 +964,7 @@ def unregister():
     bpy.utils.unregister_class(SNA_OT_Multiply_Bleed)
     bpy.utils.unregister_class(SNA_PT_Brush_Settings_86BC5)
     bpy.utils.unregister_class(SNA_OT_Reset_Background)
+    bpy.utils.unregister_class(SNA_OT_Pixel_Curve_Preset)
     bpy.utils.unregister_class(SNA_OT_Toggle_Jitter_Mode)
     bpy.utils.unregister_class(SNA_OT_Toggle_Z_Mirror)
     bpy.utils.unregister_class(SNA_OT_Toggle_Y_Mirror)
@@ -907,4 +972,4 @@ def unregister():
 
 
 if __name__ == "__main__":
-    register()
+    register()
