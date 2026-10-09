@@ -1,7 +1,7 @@
 bl_info = {
     'name': 'Project Paint Toggle',
     'author': 'Todd McIntosh, Diego Quevedo, Zafio',
-    'version': (1, 3),
+    'version': (1, 4),
     'blender': (4, 5, 0),
     'location': 'Q key in Texture Paint mode',
     'warning': '',
@@ -35,7 +35,10 @@ def toggle_project_paint(context):
     brush = paint.brush
     if brush is not None:
         try:
-            brush.cursor_color_add = CURSOR_NORMAL if state else CURSOR_THROUGH
+            # cursor_color_add is RGBA in current Blender: keep the brush's alpha
+            rgb = CURSOR_NORMAL if state else CURSOR_THROUGH
+            alpha = brush.cursor_color_add[3] if len(brush.cursor_color_add) > 3 else None
+            brush.cursor_color_add = (*rgb, alpha) if alpha is not None else rgb
         except Exception as exc:
             print("Project Paint Toggle: could not set cursor color:", exc)
 
