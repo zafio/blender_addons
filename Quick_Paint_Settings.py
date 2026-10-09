@@ -2,7 +2,7 @@ bl_info = {
     "name": "QuickPaintSettingsPanel",
     "description": "Popup Panel and Hotkeys for quicker access to common paint settings",
     "author": "Zafio",
-    "version": (0, 0, 7),
+    "version": (0, 0, 6),
     "blender": (4, 5, 0),
     "location": "View3D (Image Paint & Vertex Paint) and Image Editor",
     "warning": "",
@@ -616,42 +616,31 @@ class SNA_PT_Brush_Settings_86BC5(bpy.types.Panel):
             op = row.operator("sna.toggle_ui_style",text=r"",emboss=False,depress=True,icon='PREFERENCES')
             op = row.operator("sna.toggle_ui_size",text=r"",emboss=False,depress=True,icon='FULLSCREEN_ENTER')
             
-            # Row 2: Falloff Curve Presets | AA | Paint Symmetry
-            # Fixed-width columns (fractions of the panel width):
-            #   curves 0.50 | gap 0.04 | AA 0.14 | gap 0.04 | X Y Z 0.28
-            row = col.split(factor=0.50)
+            # Row 2: Falloff Curve Presets + Paint Symmetry
+            row = col.row(align=True)
             row.enabled = True
             row.alert = False
-            curves = row.row(align=True)
-            op = curves.operator("brush.curve_preset",text=r"",emboss=ui_style,depress=False,icon='SMOOTHCURVE')
+            row.scale_x = 1.0
+            row.scale_y = 1.0
+            op = row.operator("brush.curve_preset",text=r"",emboss=ui_style,depress=False,icon='SMOOTHCURVE')
             op.shape = sn_cast_enum(r"SMOOTH", [("SHARP","Sharp",""),("SMOOTH","Smooth",""),("MAX","Max",""),("LINE","Line",""),("ROUND","Round",""),("ROOT","Root",""),])
-            op = curves.operator("brush.curve_preset",text=r"",emboss=ui_style,depress=False,icon='SPHERECURVE')
+            op = row.operator("brush.curve_preset",text=r"",emboss=ui_style,depress=False,icon='SPHERECURVE')
             op.shape = sn_cast_enum(r"ROUND", [("SHARP","Sharp",""),("SMOOTH","Smooth",""),("MAX","Max",""),("LINE","Line",""),("ROUND","Round",""),("ROOT","Root",""),])
-            op = curves.operator("brush.curve_preset",text=r"",emboss=ui_style,depress=False,icon='SHARPCURVE')
+            op = row.operator("brush.curve_preset",text=r"",emboss=ui_style,depress=False,icon='SHARPCURVE')
             op.shape = sn_cast_enum(r"SHARP", [("SHARP","Sharp",""),("SMOOTH","Smooth",""),("MAX","Max",""),("LINE","Line",""),("ROUND","Round",""),("ROOT","Root",""),])
-            op = curves.operator("brush.curve_preset",text=r"",emboss=ui_style,depress=False,icon='NOCURVE')
+            op = row.operator("brush.curve_preset",text=r"",emboss=ui_style,depress=False,icon='NOCURVE')
             op.shape = sn_cast_enum(r"MAX", [("SHARP","Sharp",""),("SMOOTH","Smooth",""),("MAX","Max",""),("LINE","Line",""),("ROUND","Round",""),("ROOT","Root",""),])
-            op = curves.operator("sna.pixel_curve_preset",text=r"",emboss=ui_style,depress=False,icon='DOT')
-
-            rest = row.split(factor=0.08)            # gap: 0.04 of 0.50
-            rest.label(text=r"")
-            rest = rest.split(factor=0.304)          # AA: 0.14 of 0.46
-            aa = rest.row(align=True)
+            op = row.operator("sna.pixel_curve_preset",text=r"",emboss=ui_style,depress=False,icon='DOT')
             if bpy.context.scene.tool_settings.image_paint.brush:
-                aa.prop(bpy.context.scene.tool_settings.image_paint.brush,'use_paint_antialiasing',text=r"AA",emboss=ui_style,toggle=True,)
-            else:
-                aa.label(text=r"")
-            rest = rest.split(factor=0.125)          # gap: 0.04 of 0.32
-            rest.label(text=r"")
+                row.prop(bpy.context.scene.tool_settings.image_paint.brush,'use_paint_antialiasing',text=r"AA",emboss=ui_style,toggle=True,)
 
             # Paint Symmetry buttons (X, Y, Z)
-            mirror = rest.row(align=True)
             depress_x = get_paint_symmetry(bpy.context, 'x')
             depress_y = get_paint_symmetry(bpy.context, 'y')
             depress_z = get_paint_symmetry(bpy.context, 'z')
-            op = mirror.operator("sna.toggle_x_mirror",text=r"X",emboss=ui_style,depress=depress_x,icon_value=0)
-            op = mirror.operator("sna.toggle_y_mirror",text=r"Y",emboss=ui_style,depress=depress_y,icon_value=0)
-            op = mirror.operator("sna.toggle_z_mirror",text=r"Z",emboss=ui_style,depress=depress_z,icon_value=0)
+            op = row.operator("sna.toggle_x_mirror",text=r"X",emboss=ui_style,depress=depress_x,icon_value=0)
+            op = row.operator("sna.toggle_y_mirror",text=r"Y",emboss=ui_style,depress=depress_y,icon_value=0)
+            op = row.operator("sna.toggle_z_mirror",text=r"Z",emboss=ui_style,depress=depress_z,icon_value=0)
             
             col.separator(factor=0.18)
             
