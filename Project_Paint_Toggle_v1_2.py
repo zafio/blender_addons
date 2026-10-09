@@ -1,85 +1,86 @@
 bl_info = {
     'name': 'Project Paint Toggle',
-    'author': 'Todd McIntosh, Diego Quevedo, Julio Iglesias',
-    'version': (1,2),
-    'blender': (2, 75, 1),
+    'author': 'Todd McIntosh, Diego Quevedo, Zafio',
+    'version': (1, 3),
+    'blender': (4, 5, 0),
     'location': 'Q key in Texture Paint mode',
     'warning': '',
-    'description': 'Toggles Occlude, Cull, Normal and changes the cursor color',
+    'description': 'Toggles Occlude, Backface Culling and Normal falloff together, and changes the brush cursor color',
     'wiki_url': '',
     'tracker_url': '',
     'category': 'Paint'}
 
 import bpy
 
-def main(context):
+# Cursor colors: green = "paint through" (all three off), white = normal projection painting
+CURSOR_THROUGH = (0.0, 1.0, 0.0)
+CURSOR_NORMAL = (1.0, 1.0, 1.0)
 
-    area = bpy.context.area
-    info =  bpy.data
-    paint = bpy.context.tool_settings.image_paint
 
-    if area.type == 'VIEW_3D' and context.mode == 'PAINT_TEXTURE':
-        
-        
-        name = bpy.context.tool_settings.image_paint.brush.name
-        
-        
-        if (paint.use_occlude and paint.use_backface_culling and paint.use_normal_falloff):
-            paint.use_occlude = False
-            paint.use_backface_culling = False
-            paint.use_normal_falloff = False
-        
-            try:
-                info.brushes[name].cursor_color_add= (0,1,0)
-            except:
-                print("error")
-        else:
-            paint.use_occlude = True
-            paint.use_backface_culling = True
-            paint.use_normal_falloff = True
-        
-            try:
-                info.brushes[name].cursor_color_add= (1,1,1)
-            except:
-                print("error")
-            
+def toggle_project_paint(context):
+    """Flip Occlude, Backface Culling and Normal falloff as a group.
 
-class opToggleCheckboxes(bpy.types.Operator):
-    """Tooltip"""
+    Returns True when painting through (all three off), False otherwise.
+    """
+    paint = context.tool_settings.image_paint
+    all_on = paint.use_occlude and paint.use_backface_culling and paint.use_normal_falloff
+    state = not all_on
+
+    paint.use_occlude = state
+    paint.use_backface_culling = state
+    paint.use_normal_falloff = state
+
+    # Brushes are assets since Blender 4.3, so several brushes can share a name.
+    # Use the active brush directly instead of looking it up by name in bpy.data.
+    brush = paint.brush
+    if brush is not None:
+        try:
+            brush.cursor_color_add = CURSOR_NORMAL if state else CURSOR_THROUGH
+        except Exception as exc:
+            print("Project Paint Toggle: could not set cursor color:", exc)
+
+    return not state
+
+
+class PAINT_OT_toggle_project_paint(bpy.types.Operator):
+    """Toggle Occlude, Backface Culling and Normal falloff together"""
     bl_idname = "object.toggle_checkboxes"
     bl_label = "Toggle Project Paint Checkboxes"
+    bl_options = {'REGISTER', 'UNDO'}
 
     @classmethod
     def poll(cls, context):
-        return context.active_object is not None
+        return (context.mode == 'PAINT_TEXTURE'
+                and context.area is not None
+                and context.area.type == 'VIEW_3D')
 
     def execute(self, context):
-        main(context)
+        through = toggle_project_paint(context)
+        self.report({'INFO'}, "Paint through: ON" if through else "Paint through: OFF")
         return {'FINISHED'}
+
 
 addon_keymaps = []
 
 
 def register():
-    bpy.utils.register_class(opToggleCheckboxes)
+    bpy.utils.register_class(PAINT_OT_toggle_project_paint)
 
-    # handle the keymap
-    wm = bpy.context.window_manager
-    km = wm.keyconfigs.default.keymaps['Image Paint']
-    kmi = km.keymap_items.new(opToggleCheckboxes.bl_idname, 'Q', 'PRESS')
-    addon_keymaps.append(km)
+    # Register the hotkey in the add-on keyconfig (not the default one), so it
+    # can be removed cleanly and shows up under the add-on in Preferences > Keymap.
+    kc = bpy.context.window_manager.keyconfigs.addon
+    if kc:
+        km = kc.keymaps.new(name='Image Paint', space_type='EMPTY')
+        kmi = km.keymap_items.new(PAINT_OT_toggle_project_paint.bl_idname, 'Q', 'PRESS')
+        addon_keymaps.append((km, kmi))
 
 
 def unregister():
-    bpy.utils.unregister_class(opToggleCheckboxes)
+    for km, kmi in addon_keymaps:
+        km.keymap_items.remove(kmi)
+    addon_keymaps.clear()
 
-    # handle the keymap
-    wm = bpy.context.window_manager
-    for km in addon_keymaps:
-        wm.keyconfigs.addon.keymaps.remove(km)
-    # clear the list
-    del addon_keymaps[:]
-
+    bpy.utils.unregister_class(PAINT_OT_toggle_project_paint)
 
 
 if __name__ == "__main__":
