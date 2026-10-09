@@ -2,7 +2,7 @@ bl_info = {
     "name": "QuickPaintSettingsPanel",
     "description": "Popup Panel and Hotkeys for quicker access to common paint settings",
     "author": "Zafio",
-    "version": (0, 0, 5),
+    "version": (0, 0, 6),
     "blender": (4, 5, 0),
     "location": "View3D (Image Paint & Vertex Paint) and Image Editor",
     "warning": "",
@@ -631,6 +631,8 @@ class SNA_PT_Brush_Settings_86BC5(bpy.types.Panel):
             op = row.operator("brush.curve_preset",text=r"",emboss=ui_style,depress=False,icon='NOCURVE')
             op.shape = sn_cast_enum(r"MAX", [("SHARP","Sharp",""),("SMOOTH","Smooth",""),("MAX","Max",""),("LINE","Line",""),("ROUND","Round",""),("ROOT","Root",""),])
             op = row.operator("sna.pixel_curve_preset",text=r"",emboss=ui_style,depress=False,icon='DOT')
+            if bpy.context.scene.tool_settings.image_paint.brush:
+                row.prop(bpy.context.scene.tool_settings.image_paint.brush,'use_paint_antialiasing',text=r"AA",emboss=ui_style,toggle=True,)
 
             # Paint Symmetry buttons (X, Y, Z)
             depress_x = get_paint_symmetry(bpy.context, 'x')
