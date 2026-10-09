@@ -2,7 +2,7 @@ bl_info = {
     "name": "QuickPaintSettingsPanel",
     "description": "Popup Panel and Hotkeys for quicker access to common paint settings",
     "author": "Zafio",
-    "version": (0, 0, 8),
+    "version": (0, 0, 9),
     "blender": (4, 5, 0),
     "location": "View3D (Image Paint & Vertex Paint) and Image Editor",
     "warning": "",
@@ -425,6 +425,24 @@ class SNA_OT_Toggle_Jitter_Mode(bpy.types.Operator):
         return self.execute(context)
 
 
+###############   FIXED-WIDTH ROW
+def draw_fixed_width_row(layout, items):
+    """Draw buttons side by side, each in its own column of a fixed width.
+
+    items: list of (width_fraction, draw_fn); draw_fn(sub_layout) adds one button.
+    Uses a chain of aligned splits, so widths are exact and never overflow
+    (unlike an aligned row, which sizes text buttons to fit their labels).
+    """
+    remaining = sum(w for w, _ in items)
+    current = layout
+    for width, draw in items[:-1]:
+        split = current.split(factor=width / remaining, align=True)
+        draw(split)
+        remaining -= width
+        current = split
+    items[-1][1](current)
+
+
 ###############   PIXEL CURVE PRESET
 # Hard step falloff: full strength up to just under half the radius, then zero.
 PIXEL_CURVE_POINTS = ((0.0, 1.0), (0.499, 1.0), (0.5, 0.0), (1.0, 0.0))
@@ -616,32 +634,49 @@ class SNA_PT_Brush_Settings_86BC5(bpy.types.Panel):
             op = row.operator("sna.toggle_ui_style",text=r"",emboss=False,depress=True,icon='PREFERENCES')
             op = row.operator("sna.toggle_ui_size",text=r"",emboss=False,depress=True,icon='FULLSCREEN_ENTER')
             
-            # Row 2: Falloff Curve Presets + Paint Symmetry
-            # Curves + AA get 73% of the width, the X/Y/Z mirror buttons the rest
-            row_split = col.split(factor=0.60, align=True)
-            row_split.enabled = True
-            row_split.alert = False
-            row = row_split.row(align=True)
-            op = row.operator("brush.curve_preset",text=r"",emboss=ui_style,depress=False,icon='SMOOTHCURVE')
-            op.shape = sn_cast_enum(r"SMOOTH", [("SHARP","Sharp",""),("SMOOTH","Smooth",""),("MAX","Max",""),("LINE","Line",""),("ROUND","Round",""),("ROOT","Root",""),])
-            op = row.operator("brush.curve_preset",text=r"",emboss=ui_style,depress=False,icon='SPHERECURVE')
-            op.shape = sn_cast_enum(r"ROUND", [("SHARP","Sharp",""),("SMOOTH","Smooth",""),("MAX","Max",""),("LINE","Line",""),("ROUND","Round",""),("ROOT","Root",""),])
-            op = row.operator("brush.curve_preset",text=r"",emboss=ui_style,depress=False,icon='SHARPCURVE')
-            op.shape = sn_cast_enum(r"SHARP", [("SHARP","Sharp",""),("SMOOTH","Smooth",""),("MAX","Max",""),("LINE","Line",""),("ROUND","Round",""),("ROOT","Root",""),])
-            op = row.operator("brush.curve_preset",text=r"",emboss=ui_style,depress=False,icon='NOCURVE')
-            op.shape = sn_cast_enum(r"MAX", [("SHARP","Sharp",""),("SMOOTH","Smooth",""),("MAX","Max",""),("LINE","Line",""),("ROUND","Round",""),("ROOT","Root",""),])
-            op = row.operator("sna.pixel_curve_preset",text=r"",emboss=ui_style,depress=False,icon='DOT')
-            if bpy.context.scene.tool_settings.image_paint.brush:
-                row.prop(bpy.context.scene.tool_settings.image_paint.brush,'use_paint_antialiasing',text=r"AA",emboss=ui_style,toggle=True,)
-
-            # Paint Symmetry buttons (X, Y, Z)
-            row = row_split.row(align=True)
+            # Row 2: Falloff Curve Presets | AA | Paint Symmetry
+            # Every button gets its own fixed-width column, so nothing can overflow
+            # the popup. Widths are fractions of the row and are symmetric so AA
+            # sits exactly in the middle: 5 curves (44%) | AA (12%) | X Y Z (44%).
+            curve_w = 0.44 / 5
+            aa_w = 0.12
+            mirror_w = 0.44 / 3
+            brush_2d = bpy.context.scene.tool_settings.image_paint.brush
             depress_x = get_paint_symmetry(bpy.context, 'x')
             depress_y = get_paint_symmetry(bpy.context, 'y')
             depress_z = get_paint_symmetry(bpy.context, 'z')
-            op = row.operator("sna.toggle_x_mirror",text=r"X",emboss=ui_style,depress=depress_x,icon_value=0)
-            op = row.operator("sna.toggle_y_mirror",text=r"Y",emboss=ui_style,depress=depress_y,icon_value=0)
-            op = row.operator("sna.toggle_z_mirror",text=r"Z",emboss=ui_style,depress=depress_z,icon_value=0)
+
+            def curve_btn(shape, icon):
+                def draw(lay):
+                    op = lay.operator("brush.curve_preset",text=r"",emboss=ui_style,depress=False,icon=icon)
+                    op.shape = sn_cast_enum(shape, [("SHARP","Sharp",""),("SMOOTH","Smooth",""),("MAX","Max",""),("LINE","Line",""),("ROUND","Round",""),("ROOT","Root",""),])
+                return draw
+
+            def pixel_btn(lay):
+                lay.operator("sna.pixel_curve_preset",text=r"",emboss=ui_style,depress=False,icon='DOT')
+
+            def aa_btn(lay):
+                if brush_2d:
+                    lay.prop(brush_2d,'use_paint_antialiasing',text=r"AA",emboss=ui_style,toggle=True,)
+                else:
+                    lay.label(text=r"")
+
+            def mirror_btn(idname, text, depress):
+                def draw(lay):
+                    lay.operator(idname,text=text,emboss=ui_style,depress=depress,icon_value=0)
+                return draw
+
+            draw_fixed_width_row(col, [
+                (curve_w, curve_btn(r"SMOOTH", 'SMOOTHCURVE')),
+                (curve_w, curve_btn(r"ROUND", 'SPHERECURVE')),
+                (curve_w, curve_btn(r"SHARP", 'SHARPCURVE')),
+                (curve_w, curve_btn(r"MAX", 'NOCURVE')),
+                (curve_w, pixel_btn),
+                (aa_w, aa_btn),
+                (mirror_w, mirror_btn("sna.toggle_x_mirror", r"X", depress_x)),
+                (mirror_w, mirror_btn("sna.toggle_y_mirror", r"Y", depress_y)),
+                (mirror_w, mirror_btn("sna.toggle_z_mirror", r"Z", depress_z)),
+            ])
             
             col.separator(factor=0.18)
             
