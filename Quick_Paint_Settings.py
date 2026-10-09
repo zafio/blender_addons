@@ -2,7 +2,7 @@ bl_info = {
     "name": "QuickPaintSettingsPanel",
     "description": "Popup Panel and Hotkeys for quicker access to common paint settings",
     "author": "Zafio",
-    "version": (0, 0, 11),
+    "version": (0, 0, 8),
     "blender": (4, 5, 0),
     "location": "View3D (Image Paint & Vertex Paint) and Image Editor",
     "warning": "",
@@ -621,12 +621,7 @@ class SNA_PT_Brush_Settings_86BC5(bpy.types.Panel):
             row_split = col.split(factor=0.73, align=True)
             row_split.enabled = True
             row_split.alert = False
-            # Inside that block, the 5 curve presets take AA_SPLIT and AA the rest.
-            # 5/6 makes AA exactly as wide as one curve button
-            # (raise it to make AA thinner, lower it to make AA wider)
-            AA_SPLIT = 5.0 / 6.0
-            curves_split = row_split.split(factor=AA_SPLIT, align=True)
-            row = curves_split.row(align=True)
+            row = row_split.row(align=True)
             op = row.operator("brush.curve_preset",text=r"",emboss=ui_style,depress=False,icon='SMOOTHCURVE')
             op.shape = sn_cast_enum(r"SMOOTH", [("SHARP","Sharp",""),("SMOOTH","Smooth",""),("MAX","Max",""),("LINE","Line",""),("ROUND","Round",""),("ROOT","Root",""),])
             op = row.operator("brush.curve_preset",text=r"",emboss=ui_style,depress=False,icon='SPHERECURVE')
@@ -637,9 +632,7 @@ class SNA_PT_Brush_Settings_86BC5(bpy.types.Panel):
             op.shape = sn_cast_enum(r"MAX", [("SHARP","Sharp",""),("SMOOTH","Smooth",""),("MAX","Max",""),("LINE","Line",""),("ROUND","Round",""),("ROOT","Root",""),])
             op = row.operator("sna.pixel_curve_preset",text=r"",emboss=ui_style,depress=False,icon='DOT')
             if bpy.context.scene.tool_settings.image_paint.brush:
-                curves_split.prop(bpy.context.scene.tool_settings.image_paint.brush,'use_paint_antialiasing',text=r"AA",emboss=ui_style,toggle=True,)
-            else:
-                curves_split.label(text=r"")
+                row.prop(bpy.context.scene.tool_settings.image_paint.brush,'use_paint_antialiasing',text=r"AA",emboss=ui_style,toggle=True,)
 
             # Paint Symmetry buttons (X, Y, Z)
             row = row_split.row(align=True)
