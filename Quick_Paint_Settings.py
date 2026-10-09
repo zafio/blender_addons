@@ -2,7 +2,7 @@ bl_info = {
     "name": "QuickPaintSettingsPanel",
     "description": "Popup Panel and Hotkeys for quicker access to common paint settings",
     "author": "Zafio",
-    "version": (0, 0, 10),
+    "version": (0, 0, 11),
     "blender": (4, 5, 0),
     "location": "View3D (Image Paint & Vertex Paint) and Image Editor",
     "warning": "",
@@ -621,9 +621,10 @@ class SNA_PT_Brush_Settings_86BC5(bpy.types.Panel):
             row_split = col.split(factor=0.73, align=True)
             row_split.enabled = True
             row_split.alert = False
-            # Inside that block, the curve presets take AA_SPLIT and AA the rest
-            # (raise AA_SPLIT to make AA thinner, lower it to make AA wider)
-            AA_SPLIT = 0.89
+            # Inside that block, the 5 curve presets take AA_SPLIT and AA the rest.
+            # 5/6 makes AA exactly as wide as one curve button
+            # (raise it to make AA thinner, lower it to make AA wider)
+            AA_SPLIT = 5.0 / 6.0
             curves_split = row_split.split(factor=AA_SPLIT, align=True)
             row = curves_split.row(align=True)
             op = row.operator("brush.curve_preset",text=r"",emboss=ui_style,depress=False,icon='SMOOTHCURVE')
