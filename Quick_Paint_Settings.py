@@ -2,7 +2,7 @@ bl_info = {
     "name": "QuickPaintSettingsPanel",
     "description": "Popup Panel and Hotkeys for quicker access to common paint settings",
     "author": "Zafio",
-    "version": (0, 0, 7),
+    "version": (0, 0, 8),
     "blender": (4, 5, 0),
     "location": "View3D (Image Paint & Vertex Paint) and Image Editor",
     "warning": "",
@@ -617,11 +617,11 @@ class SNA_PT_Brush_Settings_86BC5(bpy.types.Panel):
             op = row.operator("sna.toggle_ui_size",text=r"",emboss=False,depress=True,icon='FULLSCREEN_ENTER')
             
             # Row 2: Falloff Curve Presets + Paint Symmetry
-            row = col.row(align=True)
-            row.enabled = True
-            row.alert = False
-            row.scale_x = 1.0
-            row.scale_y = 1.0
+            # Curves + AA get 73% of the width, the X/Y/Z mirror buttons the rest
+            row_split = col.split(factor=0.73, align=True)
+            row_split.enabled = True
+            row_split.alert = False
+            row = row_split.row(align=True)
             op = row.operator("brush.curve_preset",text=r"",emboss=ui_style,depress=False,icon='SMOOTHCURVE')
             op.shape = sn_cast_enum(r"SMOOTH", [("SHARP","Sharp",""),("SMOOTH","Smooth",""),("MAX","Max",""),("LINE","Line",""),("ROUND","Round",""),("ROOT","Root",""),])
             op = row.operator("brush.curve_preset",text=r"",emboss=ui_style,depress=False,icon='SPHERECURVE')
@@ -630,11 +630,12 @@ class SNA_PT_Brush_Settings_86BC5(bpy.types.Panel):
             op.shape = sn_cast_enum(r"SHARP", [("SHARP","Sharp",""),("SMOOTH","Smooth",""),("MAX","Max",""),("LINE","Line",""),("ROUND","Round",""),("ROOT","Root",""),])
             op = row.operator("brush.curve_preset",text=r"",emboss=ui_style,depress=False,icon='NOCURVE')
             op.shape = sn_cast_enum(r"MAX", [("SHARP","Sharp",""),("SMOOTH","Smooth",""),("MAX","Max",""),("LINE","Line",""),("ROUND","Round",""),("ROOT","Root",""),])
+            op = row.operator("sna.pixel_curve_preset",text=r"",emboss=ui_style,depress=False,icon='DOT')
             if bpy.context.scene.tool_settings.image_paint.brush:
                 row.prop(bpy.context.scene.tool_settings.image_paint.brush,'use_paint_antialiasing',text=r"AA",emboss=ui_style,toggle=True,)
-            op = row.operator("sna.pixel_curve_preset",text=r"",emboss=ui_style,depress=False,icon='DOT')
 
             # Paint Symmetry buttons (X, Y, Z)
+            row = row_split.row(align=True)
             depress_x = get_paint_symmetry(bpy.context, 'x')
             depress_y = get_paint_symmetry(bpy.context, 'y')
             depress_z = get_paint_symmetry(bpy.context, 'z')
