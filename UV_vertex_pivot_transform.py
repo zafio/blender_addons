@@ -1,7 +1,7 @@
 bl_info = {
     "name": "UV Vertex Pivot Transform",
     "author": "Zafio",
-    "version": (1, 1, 1),
+    "version": (1, 2, 0),
     "blender": (4, 5, 0),
     "location": "UV Editor > Ctrl+R (rotate), Ctrl+X (mirror)",
     "description": "Allows to rotate and mirror the selection using the closest vertex "
@@ -241,6 +241,7 @@ class _PivotTransform:
         self.mouse = (event.mouse_region_x, event.mouse_region_y)
         self.ctrl = event.ctrl
         self.shift = event.shift
+        self.alt = event.alt
         self._applied = None
         self._resync = False
 
@@ -294,6 +295,7 @@ class _PivotTransform:
 
         self.ctrl = event.ctrl
         self.shift = event.shift
+        self.alt = event.alt
 
         if event.value == 'PRESS' and et in {'LEFTMOUSE', 'RET', 'NUMPAD_ENTER', 'SPACE'}:
             self._end(context)
@@ -378,7 +380,8 @@ class UV_OT_vertex_pivot_rotate(_PivotTransform, bpy.types.Operator):
     bl_idname = "uv.vertex_pivot_rotate"
     bl_label = "Rotate Around Nearest Vertex"
     bl_description = ("Rotate the selected UVs around the UV vertex closest to the mouse. "
-                      "Type a value in degrees, hold Ctrl to snap, Shift for precision")
+                      "Type a value in degrees, hold Ctrl to snap, Alt to snap to 90°, "
+                      "Shift for precision")
     bl_options = {'REGISTER', 'UNDO'}
 
     angle: FloatProperty(name="Angle", subtype='ANGLE', default=0.0)
@@ -398,7 +401,7 @@ class UV_OT_vertex_pivot_rotate(_PivotTransform, bpy.types.Operator):
         px, py = self._pivot_region()
         self.prev_vec = (self.mouse[0] - px, self.mouse[1] - py)
         self.status_text = ("Rotate  |  Mouse / type value: angle  |  Ctrl: snap  |  "
-                            "Shift: precision  |  LMB/Enter: confirm  |  Esc/RMB: cancel")
+                            "Alt: snap 90°  |  Shift: precision  |  LMB/Enter: confirm  |  Esc/RMB: cancel")
 
     # -- mouse -> angle (incremental, wraps past 180° like Blender) ---------
 
@@ -472,6 +475,9 @@ class UV_OT_vertex_pivot_rotate(_PivotTransform, bpy.types.Operator):
             except ValueError:
                 deg = 0.0
             return math.radians(-deg if self.neg else deg), None
+        if self.alt:
+            inc = math.pi / 2.0
+            return round(self.raw / inc) * inc, inc
         if self.ctrl:
             inc = self._snap_increment(context)
             return round(self.raw / inc) * inc, inc
