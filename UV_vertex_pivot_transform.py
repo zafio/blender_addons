@@ -1,7 +1,7 @@
 bl_info = {
     "name": "UV Vertex Pivot Transform",
     "author": "Zafio",
-    "version": (1, 1, 0),
+    "version": (1, 1, 1),
     "blender": (4, 5, 0),
     "location": "UV Editor > Ctrl+R (rotate), Ctrl+X (mirror)",
     "description": "Allows to rotate and mirror the selection using the closest vertex "
@@ -96,7 +96,9 @@ def _gather(context):
     """Collect selected UV loops per mesh.
 
     Returns (objs, selected_pts, visible_pts) where objs is a list of
-    (mesh, [(BMLoopUV, u0, v0), ...]). Selection rules follow Blender's
+    (mesh, bmesh, [(BMLoopUV, u0, v0), ...]). The bmesh must stay referenced
+    for as long as the BMLoopUV items are used, otherwise Python frees the
+    wrapper and the UV references stop working. Selection rules follow Blender's
     UV transform: in sync mode with face select, only loops of selected
     faces count; in vertex/edge sync mode, loops of selected vertices.
     """
@@ -132,20 +134,20 @@ def _gather(context):
                     items.append((luv, u, v))
                     selected_pts.append((u, v))
         if items:
-            objs.append((me, items))
+            objs.append((me, bm, items))
 
     return objs, selected_pts, visible_pts
 
 
 def _update_meshes(objs):
-    for me, _items in objs:
+    for me, _bm, _items in objs:
         bmesh.update_edit_mesh(me, loop_triangles=False, destructive=False)
 
 
 def _rotate_uvs(objs, pivot, ccw, aspect):
     c, s = math.cos(ccw), math.sin(ccw)
     pu, pv = pivot
-    for _me, items in objs:
+    for _me, _bm, items in objs:
         for luv, u0, v0 in items:
             x = (u0 - pu) * aspect
             y = v0 - pv
@@ -155,7 +157,7 @@ def _rotate_uvs(objs, pivot, ccw, aspect):
 
 def _mirror_uvs(objs, pivot, axis):
     pu, pv = pivot
-    for _me, items in objs:
+    for _me, _bm, items in objs:
         for luv, u0, v0 in items:
             if axis == 'X':
                 luv.uv = (2.0 * pu - u0, v0)
@@ -207,7 +209,7 @@ class _PivotTransform:
         return float(x), float(y)
 
     def _restore(self):
-        for _me, items in self.objs:
+        for _me, _bm, items in self.objs:
             for luv, u0, v0 in items:
                 luv.uv = (u0, v0)
         _update_meshes(self.objs)
@@ -242,13 +244,24 @@ class _PivotTransform:
         self._applied = None
         self._resync = False
 
-        self.setup(context, event)
+        try:
+            self.setup(context, event)
+            self.refresh(context)
+        except Exception as exc:
+            self._restore()
+            try:
+                self.area.header_text_set(None)
+            except Exception:
+                pass
+            self.report({'ERROR'}, f"{self.bl_label} failed: {exc}")
+            return {'CANCELLED'}
 
+        # Overlay is only added once the first update succeeded, so a failure
+        # can never leave a stuck dot/axis on screen.
         self._handler = bpy.types.SpaceImageEditor.draw_handler_add(
             self._draw, (), 'WINDOW', 'POST_PIXEL')
         context.workspace.status_text_set(self.status_text)
         context.window_manager.modal_handler_add(self)
-        self.refresh(context)
         return {'RUNNING_MODAL'}
 
     def _end(self, context):
