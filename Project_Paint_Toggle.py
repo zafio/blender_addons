@@ -20,7 +20,7 @@ import bpy
 #   white = anything else (mixed checkboxes)
 CURSOR_THROUGH = (0.0, 1.0, 0.0)
 CURSOR_NO_BLEED = (1.0, 0.0, 0.0)
-CURSOR_FULL = (0.0, 0.5, 1.0)
+CURSOR_FULL = (0.1, 0.1, 1.0)
 CURSOR_NORMAL = (1.0, 1.0, 1.0)
 
 # Scene custom property that remembers the bleed value while it is set to 0
