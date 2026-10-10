@@ -2,7 +2,7 @@ bl_info = {
     "name": "QuickPaintSettingsPanel",
     "description": "Popup Panel and Hotkeys for quicker access to common paint settings",
     "author": "Zafio",
-    "version": (0, 0, 9),
+    "version": (0, 0, 10),
     "blender": (4, 5, 0),
     "location": "View3D (Image Paint & Vertex Paint) and Image Editor",
     "warning": "",
@@ -17,6 +17,8 @@ import bpy
 from bpy.utils import previews
 import os
 import math
+import time
+from bpy.app.handlers import persistent
 
 
 ###############   INITIALIZE VARIABLES
@@ -893,6 +895,136 @@ def register_key_B0360():
         addon_keymaps['B0360'] = (km, kmi)
 
 
+###############   SEPARATE BRUSH SIZE: 3D VIEW / IMAGE EDITOR
+# Texture painting in the 3D View and in the Image Editor share one Radius.
+# A background watcher follows the mouse; when it moves from one kind of paint
+# editor to the other, the current Radius is saved for the editor being left
+# and the one saved for the editor being entered is restored.
+# Sizes are stored on the scene, so they are kept in the .blend file.
+SIZE_KEYS = {'VIEW3D': "qps_paint_size_view3d", 'IMAGE': "qps_paint_size_image"}
+WATCHER_LIFETIME = 10.0   # seconds; the watcher restarts itself so autosave can run
+_size_watch = {"enabled": False, "running": set(), "last_target": None}
+
+
+def paint_size_target(context, area):
+    """Which size slot the area under the mouse uses: 'VIEW3D', 'IMAGE' or None."""
+    if area is None:
+        return None
+    if area.type == 'VIEW_3D':
+        return 'VIEW3D' if context.mode == 'PAINT_TEXTURE' else None
+    if area.type == 'IMAGE_EDITOR':
+        space = area.spaces.active
+        mode = getattr(space, "ui_mode", None) or getattr(space, "mode", None)
+        return 'IMAGE' if mode == 'PAINT' else None
+    return None
+
+
+def _size_owner(scene):
+    """The datablock holding the Radius: unified settings, or the brush itself."""
+    ts = scene.tool_settings
+    ups = ts.unified_paint_settings
+    if ups.use_unified_size or ts.image_paint.brush is None:
+        return ups
+    return ts.image_paint.brush
+
+
+def switch_paint_size(context, target):
+    last = _size_watch["last_target"]
+    if target is None or target == last:
+        return
+    scene = context.scene
+    owner = _size_owner(scene)
+    if last is not None:
+        scene[SIZE_KEYS[last]] = owner.size
+    saved = scene.get(SIZE_KEYS[target])
+    if saved is not None and saved != owner.size:
+        owner.size = int(saved)
+    _size_watch["last_target"] = target
+
+
+def _area_under_mouse(window, event):
+    x, y = event.mouse_x, event.mouse_y
+    for area in window.screen.areas:
+        if area.x <= x < area.x + area.width and area.y <= y < area.y + area.height:
+            return area
+    return None
+
+
+class SNA_OT_Paint_Size_Watcher(bpy.types.Operator):
+    bl_idname = "sna.paint_size_watcher"
+    bl_label = "Paint Size Watcher"
+    bl_description = "Keeps separate brush sizes for 3D View and Image Editor painting"
+    bl_options = {'INTERNAL'}
+
+    def invoke(self, context, event):
+        self._start = time.monotonic()
+        self._win = context.window.as_pointer()
+        # Wakes the watcher up even when idle, so it can end on time
+        self._timer = context.window_manager.event_timer_add(2.0, window=context.window)
+        _size_watch["running"].add(self._win)
+        context.window_manager.modal_handler_add(self)
+        return {'RUNNING_MODAL'}
+
+    def _finish(self, context):
+        _size_watch["running"].discard(self._win)
+        try:
+            context.window_manager.event_timer_remove(self._timer)
+        except Exception:
+            pass
+
+    def modal(self, context, event):
+        if not _size_watch["enabled"] or time.monotonic() - self._start > WATCHER_LIFETIME:
+            self._finish(context)
+            return {'FINISHED', 'PASS_THROUGH'}
+        if event.type == 'MOUSEMOVE' and context.window and context.window.screen:
+            try:
+                area = _area_under_mouse(context.window, event)
+                switch_paint_size(context, paint_size_target(context, area))
+            except Exception as exc:
+                print(str(exc) + " | Error in Paint_Size_Watcher")
+        return {'PASS_THROUGH'}
+
+
+def _ensure_size_watchers():
+    if not _size_watch["enabled"]:
+        return None
+    wm = bpy.context.window_manager
+    if wm is None:
+        return 0.5
+    for window in wm.windows:
+        if window.as_pointer() in _size_watch["running"] or window.screen is None:
+            continue
+        try:
+            with bpy.context.temp_override(window=window, screen=window.screen):
+                bpy.ops.sna.paint_size_watcher('INVOKE_DEFAULT')
+        except Exception as exc:
+            print(str(exc) + " | Could not start Paint_Size_Watcher")
+    return 0.5
+
+
+@persistent
+def _size_watch_load_pre(*args):
+    # Loading a file removes the watchers without telling them
+    _size_watch["running"].clear()
+    _size_watch["last_target"] = None
+
+
+def start_size_watch():
+    _size_watch["enabled"] = True
+    if _size_watch_load_pre not in bpy.app.handlers.load_pre:
+        bpy.app.handlers.load_pre.append(_size_watch_load_pre)
+    if not bpy.app.timers.is_registered(_ensure_size_watchers):
+        bpy.app.timers.register(_ensure_size_watchers, first_interval=0.5, persistent=True)
+
+
+def stop_size_watch():
+    _size_watch["enabled"] = False   # running watchers end on their next event
+    if bpy.app.timers.is_registered(_ensure_size_watchers):
+        bpy.app.timers.unregister(_ensure_size_watchers)
+    if _size_watch_load_pre in bpy.app.handlers.load_pre:
+        bpy.app.handlers.load_pre.remove(_size_watch_load_pre)
+
+
 ###############   REGISTER ICONS
 def sn_register_icons():
     icons = []
@@ -983,6 +1115,8 @@ def register():
     bpy.utils.register_class(SNA_OT_Multiply_Bleed)
     bpy.utils.register_class(SNA_OT_Toggle_Ui_Style)
     bpy.utils.register_class(SNA_OT_Toggle_Ui_Size)
+    bpy.utils.register_class(SNA_OT_Paint_Size_Watcher)
+    start_size_watch()
     register_key_757AB()
     register_key_C6025()
     register_key_314FA()
@@ -997,6 +1131,8 @@ def unregister():
         km, kmi = addon_keymaps[key]
         km.keymap_items.remove(kmi)
     addon_keymaps.clear()
+    stop_size_watch()
+    bpy.utils.unregister_class(SNA_OT_Paint_Size_Watcher)
     bpy.utils.unregister_class(SNA_OT_Toggle_Ui_Size)
     bpy.utils.unregister_class(SNA_OT_Toggle_Ui_Style)
     bpy.utils.unregister_class(SNA_OT_Multiply_Bleed)
