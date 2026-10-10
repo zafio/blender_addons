@@ -17,7 +17,7 @@ Adds hotkeys to improve control over animation playback. At Timeline, Graph or D
 - 3 = Increases Framerate by 5
 
 ####PROJECT PAINT TOGGLE
-Q (Texture Paint mode) toggles "Occlude, Cull and Normal" at once; W toggles Bleed between 0 and its previous value.
+Alt+S (Texture Paint mode) toggles "Occlude, Cull and Normal" at once; Alt+D toggles Bleed between 0 and its previous value.
 Cursor: green = paint through, red = bleed on, blue = both, white = neither.
 https://www.youtube.com/watch?v=rL1v3YSVyCg
 

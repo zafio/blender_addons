@@ -1,12 +1,12 @@
 bl_info = {
     'name': 'Project Paint Toggle',
     'author': 'Todd McIntosh, Diego Quevedo, Zafio',
-    'version': (1, 6),
+    'version': (1, 7),
     'blender': (4, 5, 0),
-    'location': 'Q / W keys in Texture Paint mode',
+    'location': 'Alt+S / Alt+D in Texture Paint mode',
     'warning': '',
-    'description': 'Q toggles Occlude, Backface Culling and Normal falloff together; '
-                   'W toggles Bleed between 0 and its previous value. The brush cursor color shows the state',
+    'description': 'Alt+S toggles Occlude, Backface Culling and Normal falloff together; '
+                   'Alt+D toggles Bleed between 0 and its previous value. The brush cursor color shows the state',
     'wiki_url': '',
     'tracker_url': '',
     'category': 'Paint'}
@@ -142,9 +142,9 @@ def register():
     kc = bpy.context.window_manager.keyconfigs.addon
     if kc:
         km = kc.keymaps.new(name='Image Paint', space_type='EMPTY')
-        for idname, key in ((PAINT_OT_toggle_project_paint.bl_idname, 'Q'),
-                            (PAINT_OT_toggle_bleed.bl_idname, 'W')):
-            kmi = km.keymap_items.new(idname, key, 'PRESS')
+        for idname, key in ((PAINT_OT_toggle_project_paint.bl_idname, 'S'),
+                            (PAINT_OT_toggle_bleed.bl_idname, 'D')):
+            kmi = km.keymap_items.new(idname, key, 'PRESS', alt=True)
             addon_keymaps.append((km, kmi))
 
 
