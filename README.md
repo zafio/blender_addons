@@ -18,7 +18,7 @@ Adds hotkeys to improve control over animation playback. At Timeline, Graph or D
 
 ####PROJECT PAINT TOGGLE
 Q (Texture Paint mode) toggles "Occlude, Cull and Normal" at once; W toggles Bleed between 0 and its previous value.
-Cursor: green = paint through, red = bleed off, blue = all on with bleed.
+Cursor: green = paint through, red = bleed on, blue = both, white = neither.
 https://www.youtube.com/watch?v=rL1v3YSVyCg
 
 ####EASY PIXEL INTERPOL

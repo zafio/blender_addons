@@ -1,7 +1,7 @@
 bl_info = {
     'name': 'Project Paint Toggle',
     'author': 'Todd McIntosh, Diego Quevedo, Zafio',
-    'version': (1, 5),
+    'version': (1, 6),
     'blender': (4, 5, 0),
     'location': 'Q / W keys in Texture Paint mode',
     'warning': '',
@@ -13,14 +13,14 @@ bl_info = {
 
 import bpy
 
-# Cursor colors (checked in this order):
-#   green = paint through (Occlude, Culling and Normal all off)
-#   red   = bleed is 0
-#   blue  = all three on and bleed on
-#   white = anything else (mixed checkboxes)
+# Cursor colors:
+#   green  = paint through ON (Occlude, Culling and Normal all off), bleed 0
+#   red    = bleed ON, paint through off
+#   blue   = paint through ON and bleed ON
+#   white  = neither
 CURSOR_THROUGH = (0.0, 1.0, 0.0)
-CURSOR_NO_BLEED = (1.0, 0.0, 0.0)
-CURSOR_FULL = (0.1, 0.1, 1.0)
+CURSOR_BLEED = (1.0, 0.0, 0.0)
+CURSOR_BOTH = (0.1, 0.1, 1.0)
 CURSOR_NORMAL = (1.0, 1.0, 1.0)
 
 # Scene custom property that remembers the bleed value while it is set to 0
@@ -40,13 +40,14 @@ def checkers_state(paint):
 
 def update_cursor_color(context):
     paint = context.tool_settings.image_paint
-    checkers = checkers_state(paint)
-    if checkers == 'off':
+    through = checkers_state(paint) == 'off'
+    bleed = paint.seam_bleed != 0
+    if through and bleed:
+        rgb = CURSOR_BOTH
+    elif through:
         rgb = CURSOR_THROUGH
-    elif paint.seam_bleed == 0:
-        rgb = CURSOR_NO_BLEED
-    elif checkers == 'on':
-        rgb = CURSOR_FULL
+    elif bleed:
+        rgb = CURSOR_BLEED
     else:
         rgb = CURSOR_NORMAL
 
